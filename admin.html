@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VIDGU ADMIN</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+
+    <style>
+        :root { --primary: #1ed760; --bg: #0b0b0b; --card: #181818; --border: #2c2c2c; --text: #ffffff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--text); }
+        
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; text-align: center; }
+        .auth-box { background: var(--card); padding: 30px 20px; border-radius: 15px; border: 1px solid var(--border); width: 100%; max-width: 350px; }
+        #admin-ui { display: none; padding-bottom: 80px; }
+        
+        .header { background: #000; padding: 15px; border-bottom: 2px solid var(--primary); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        .tab-bar { position: fixed; bottom: 0; width: 100%; background: #000; display: flex; height: 65px; border-top: 1px solid var(--border); z-index: 1000; }
+        .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; color: #666; font-weight: bold; text-decoration: none; text-transform: uppercase; cursor: pointer; }
+        .tab.active { color: var(--primary); }
+        .page { display: none; }
+        .active-page { display: block; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        .stat-card h3 { font-size: 20px; color: var(--primary); }
+        .stat-card p { font-size: 10px; color: #888; text-transform: uppercase; }
+
+        .section-title { padding: 12px 15px; font-size: 13px; color: var(--primary); font-weight: bold; background: #111; border-left: 3px solid var(--primary); margin-top: 10px; }
+        .admin-card { background: var(--card); margin: 10px 15px; padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+        .inp { width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; margin: 8px 0; outline: none; font-size: 14px; }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 12px; transition: 0.3s; }
+        .btn-save { background: var(--primary); color: #000; }
+        .btn-danger { background: #ff4444; color: #fff; }
+        .btn-sm { padding: 6px 10px; width: auto; font-size: 10px; margin: 2px; border-radius: 5px; }
+
+        .user-item { display: flex; justify-content: space-between; align-items: center; background: var(--card); margin: 5px 10px; padding: 12px; border-radius: 10px; border: 1px solid var(--border); }
+        .user-info b { display: block; font-size: 14px; }
+        .user-info span { font-size: 12px; color: var(--primary); font-weight: bold; }
+
+        .request-item { background: var(--card); margin: 10px 15px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; padding: 12px; }
+        .req-media-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .media-container { position: relative; width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid #333; }
+        .media-container video, .media-container img { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+        .media-label { position: absolute; top: 0; width: 100%; background: rgba(30,215,96,0.8); color: #000; font-size: 9px; text-align: center; padding: 2px 0; font-weight: bold; z-index: 5; }
+    </style>
+</head>
+<body>
+
+<div id="auth-screen">
+    <div class="auth-box">
+        <h2 style="color:var(--primary); margin-bottom: 10px;">VIDGU ADMIN</h2>
+        <input type="email" id="auth-email" class="inp" placeholder="Admin Gmail">
+        <input type="password" id="auth-pass" class="inp" placeholder="Password">
+        <button class="btn btn-save" onclick="login()">LOGIN TO DASHBOARD</button>
+    </div>
+</div>
+
+<div id="admin-ui">
+    <div class="header">
+        <h2 style="font-size: 16px;">VIDGU <span style="color:var(--primary)">PRO</span></h2>
+        <button class="btn btn-danger btn-sm" onclick="logout()">LOGOUT</button>
+    </div>
+
+    <div id="page-dash" class="page active-page">
+        <div class="stats-grid">
+            <div class="stat-card"><h3 id="stat-users">0</h3><p>Total Users</p></div>
+            <div class="stat-card"><h3 id="stat-requests">0</h3><p>Promo Req</p></div>
+            <div class="stat-card"><h3 id="stat-withdraw">0</h3><p>Pending WDR</p></div>
+            <div class="stat-card"><h3 id="stat-chats">0</h3><p>Live Chats</p></div>
+        </div>
+
+        <div class="section-title">GLOBAL SETTINGS</div>
+        <div class="admin-card">
+            <label style="font-size: 11px; color: #888;">Video Reward (₹)</label>
+            <input type="number" id="set-reward" class="inp" step="0.01">
+            <label style="font-size: 11px; color: #888;">Promotion Fee (₹)</label>
+            <input type="number" id="set-fee" class="inp">
+            <label style="font-size: 11px; color: #888;">Admin UPI ID</label>
+            <input type="text" id="set-upi" class="inp">
+            <label style="font-size: 11px; color: #888;">Payment QR URL</label>
+            <input type="text" id="set-qr" class="inp">
+            <button class="btn btn-save" onclick="saveSettings()">SAVE SETTINGS</button>
+        </div>
+
+        <div class="section-title">MONETAG ADS CONTROL</div>
+        <div class="admin-card">
+            <label style="font-size: 11px; color: #888;">Ads Master Switch</label>
+            <select id="set-ad-status" class="inp">
+                <option value="on">Ads ON</option>
+                <option value="off">Ads OFF</option>
+            </select>
+            <label style="font-size: 11px; color: #888;">Monetag Script Link</label>
+            <input type="text" id="set-ad-script" class="inp">
+            <label style="font-size: 11px; color: #888;">Monetag Zone ID</label>
+            <input type="text" id="set-ad-zone" class="inp">
+            <button class="btn btn-save" style="background: #007bff; color: #fff;" onclick="saveAds()">UPDATE ADS</button>
+        </div>
+    </div>
+
+    <div id="page-requests" class="page">
+        <div class="section-title">PENDING PROMOTIONS (VIDEO & PROOF)</div>
+        <div id="promo-req-list"></div>
+    </div>
+
+    <div id="page-users" class="page">
+        <div class="section-title">USER LIST & BALANCE</div>
+        <div class="admin-card" style="padding: 10px;"><input type="tel" id="search-phone-input" class="inp" placeholder="Search Phone..." oninput="filterUsers()"></div>
+        <div id="full-user-list"></div>
+    </div>
+
+    <div id="page-chats" class="page">
+        <div class="section-title">LIVE CHATS</div>
+        <button class="btn btn-danger" style="width:90%; margin: 10px 5%;" onclick="clearAllChats()">CLEAR CHATS</button>
+        <div id="admin-chat-list"></div>
+    </div>
+
+    <div id="page-pay" class="page">
+        <div class="section-title">WITHDRAWAL MANAGEMENT (PENDING)</div>
+        <div id="withdraw-list"></div>
+    </div>
+
+    <nav class="tab-bar">
+        <div class="tab active" onclick="nav('page-dash', this)">DASH</div>
+        <div class="tab" onclick="nav('page-requests', this)">PROMO</div>
+        <div class="tab" onclick="nav('page-users', this)">USERS</div>
+        <div class="tab" onclick="nav('page-chats', this)">CHATS</div>
+        <div class="tab" onclick="nav('page-pay', this)">PAY</div>
+    </nav>
+</div>
+
+<script>
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+  apiKey: "AIzaSyDTZ11VgmqCuJxXGH626zbH4HG7IWDIt-w",
+  authDomain: "vidgu--max.firebaseapp.com",
+  databaseURL: "https://vidgu--max-default-rtdb.firebaseio.com",
+  projectId: "vidgu--max",
+  storageBucket: "vidgu--max.firebasestorage.app",
+  messagingSenderId: "65933375026",
+  appId: "1:65933375026:web:35011c643ac94b15776e2b"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    function login() {
+        const email = document.getElementById('auth-email').value;
+        const pass = document.getElementById('auth-pass').value;
+        auth.signInWithEmailAndPassword(email, pass).catch(error => alert(error.message));
+    }
+    function logout() { if(confirm("Logout?")) auth.signOut(); }
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('admin-ui').style.display = 'block';
+            startAllListeners();
+        } else {
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('admin-ui').style.display = 'none';
+        }
+    });
+
+    function nav(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active-page');
+        el.classList.add('active');
+    }
+
+    function startAllListeners() {
+        db.ref('users').on('value', s => {
+            document.getElementById('stat-users').innerText = s.numChildren();
+            renderUserList(s.val());
+        });
+        db.ref('promo_requests').on('value', s => {
+            let pending = 0; s.forEach(c => { if(c.val().status === 'pending') pending++; });
+            document.getElementById('stat-requests').innerText = pending;
+            renderPromos(s);
+        });
+        db.ref('withdrawals').on('value', s => {
+            let pending = 0; s.forEach(c => { if(c.val().status === 'pending') pending++; });
+            document.getElementById('stat-withdraw').innerText = pending;
+            renderWithdrawals(s);
+        });
+        db.ref('chat').on('value', s => {
+            document.getElementById('stat-chats').innerText = s.numChildren();
+            renderChats(s);
+        });
+        db.ref('admin_settings').on('value', s => {
+            const d = s.val() || {};
+            document.getElementById('set-reward').value = d.reward || 0;
+            document.getElementById('set-fee').value = d.fee || 0;
+            document.getElementById('set-upi').value = d.upi || "";
+            document.getElementById('set-qr').value = d.qr_url || "";
+        });
+        db.ref('ad_config').on('value', s => {
+            const ad = s.val() || {};
+            document.getElementById('set-ad-status').value = ad.status || 'off';
+            document.getElementById('set-ad-script').value = ad.script || '';
+            document.getElementById('set-ad-zone').value = ad.zone || '';
+        });
+    }
+
+    // --- PROMO HANDLING (Video & Screenshot Links) ---
+    function renderPromos(s) {
+        const list = document.getElementById('promo-req-list');
+        list.innerHTML = "";
+        s.forEach(child => {
+            const req = child.val();
+            if(req.status === 'pending') {
+                // Video Data aur Proof Screenshot Links se media generate ho raha hai
+                list.innerHTML += `
+                <div class="request-item">
+                    <div class="req-media-box">
+                        <div class="media-container">
+                            <div class="media-label">VIDEO PLAYER</div>
+                            <video src="${req.videoData}" controls preload="metadata" onerror="this.outerHTML='<p style=padding:20px;font-size:10px;>Invalid Video Link</p>'"></video>
+                        </div>
+                        <div class="media-container">
+                            <div class="media-label">PROOF IMG</div>
+                            <img src="${req.proof}" onclick="window.open(this.src)" onerror="this.src='https://placehold.co/400x600?text=Invalid+Image+Link'">
+                        </div>
+                    </div>
+                    <div class="req-info">
+                        <p style="font-size:12px; margin-bottom:5px;"><b>Phone:</b> ${req.phone}</p>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-save" style="flex:1;" onclick="handlePromo('${child.key}', '${req.phone}', '${req.historyKey}', 'approved', '${req.videoData}')">APPROVE & LIVE</button>
+                            <button class="btn btn-danger" style="flex:1;" onclick="handlePromo('${child.key}', '${req.phone}', '${req.historyKey}', 'rejected')">REJECT</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        });
+    }
+
+    function handlePromo(key, phone, historyKey, status, videoUrl) {
+        if(confirm("Action: " + status.toUpperCase() + "?")) {
+            // Approval hone par video link global queue mein jayega
+            if(status === 'approved') db.ref('global_queue').push({ url: videoUrl, time: Date.now() });
+            
+            db.ref('promo_requests/' + key).update({ status: status });
+            if(historyKey) db.ref(`users/${phone}/history/${historyKey}`).update({ status: status });
+            alert("Promo Status Updated and Synced!");
+        }
+    }
+
+    // --- WITHDRAWAL: REALTIME SUCCESS MARKING ---
+    function renderWithdrawals(s) {
+        const box = document.getElementById('withdraw-list');
+        box.innerHTML = "";
+        s.forEach(child => {
+            const w = child.val();
+            if(w.status === 'pending') {
+                box.innerHTML += `<div class="user-item">
+                    <div class="user-info"><b>${w.phone}</b><small>UPI: ${w.upi}</small><span>₹${w.amt}</span></div>
+                    <div>
+                        <button class="btn btn-save btn-sm" onclick="handleWithdraw('${child.key}', '${w.phone}', '${w.historyKey}', 'success')">SUCCESS</button>
+                        <button class="btn btn-danger btn-sm" onclick="handleWithdraw('${child.key}', '${w.phone}', '${w.historyKey}', 'rejected', ${w.amt})">REJECT</button>
+                    </div>
+                </div>`;
+            }
+        });
+    }
+
+    function handleWithdraw(key, phone, historyKey, status, refundAmt = 0) {
+        if(confirm("Mark Payment as " + status.toUpperCase() + "?")) {
+            db.ref('withdrawals/' + key).update({ status: status });
+            // Isse User App ke History mein realtime status 'success' ho jayega
+            if(historyKey) {
+                db.ref(`users/${phone}/history/${historyKey}`).update({ status: status });
+            }
+            if(status === 'rejected') {
+                db.ref(`users/${phone}/balance`).transaction(c => (c || 0) + refundAmt);
+            }
+            alert("Payment Status Updated Globally!");
+        }
+    }
+
+    // --- OTHER CORE FUNCTIONS ---
+    function saveAds() {
+        db.ref('ad_config').set({
+            status: document.getElementById('set-ad-status').value,
+            script: document.getElementById('set-ad-script').value,
+            zone: document.getElementById('set-ad-zone').value
+        }).then(() => alert("Ads Config Updated Realtime!"));
+    }
+
+    function saveSettings() {
+        db.ref('admin_settings').update({
+            reward: parseFloat(document.getElementById('set-reward').value),
+            fee: parseInt(document.getElementById('set-fee').value),
+            upi: document.getElementById('set-upi').value,
+            qr_url: document.getElementById('set-qr').value
+        }).then(() => alert("Settings Updated"));
+    }
+
+    function renderUserList(users) {
+        const listDiv = document.getElementById('full-user-list');
+        listDiv.innerHTML = "";
+        if(!users) return;
+        Object.keys(users).forEach(phone => {
+            const u = users[phone];
+            listDiv.innerHTML += `<div class="user-item" data-phone="${phone}">
+                <div class="user-info"><b>${u.name || 'User'}</b><small>${phone}</small><span>₹${(u.balance || 0).toFixed(2)}</span></div>
+                <button class="btn-save btn-sm" onclick="editUserBal('${phone}', ${u.balance || 0})">EDIT</button>
+            </div>`;
+        });
+    }
+
+    function editUserBal(phone, old) {
+        const n = prompt("New Balance:", old);
+        if(n !== null) db.ref('users/' + phone).update({ balance: parseFloat(n) });
+    }
+
+    function renderChats(s) {
+        const box = document.getElementById('admin-chat-list'); box.innerHTML = "";
+        s.forEach(child => {
+            const m = child.val();
+            box.innerHTML += `<div class="user-item"><div><b>${m.name}</b><p>${m.text}</p></div>
+            <button class="btn-danger btn-sm" onclick="db.ref('chat/${child.key}').remove()">DEL</button></div>`;
+        });
+    }
+
+    function filterUsers() {
+        let val = document.getElementById('search-phone-input').value.toLowerCase();
+        document.querySelectorAll('.user-item[data-phone]').forEach(item => {
+            item.style.display = item.getAttribute('data-phone').includes(val) ? "flex" : "none";
+        });
+    }
+    function clearAllChats() { if(confirm("Clear All?")) db.ref('chat').remove(); }
+</script>
+
+</body>
+</html>

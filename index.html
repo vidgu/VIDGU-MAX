@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VIDGU MAX</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --primary: #1ed760; --bg: #000; --card: #121212; --border: #282828; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: white; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        #login-overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .app-bar { height: 60px; padding: 0 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .logo { color: var(--primary); font-weight: 900; font-size: 1.6rem; }
+        
+        .viewport { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 12px; }
+        .page { display: none; flex-direction: column; gap: 12px; height: 100%; }
+        .active { display: flex; }
+        
+        .video-box { height: 210px; background: #000; border: 1px solid #333; border-radius: 15px; overflow: hidden; position: relative; flex-shrink: 0; }
+        #main-player { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* AD CONTAINER STYLING */
+        #ad-container { width: 100%; text-align: center; background: #1a1a1a; border-radius: 10px; min-height: 50px; display: none; padding: 10px 0; margin: 5px 0; overflow: hidden; }
+
+        .history-card { background: var(--card); border: 1px solid var(--border); border-radius: 15px; flex: 1; display: flex; flex-direction: column; overflow: hidden; margin-top: 5px; }
+        .history-header { background: #1a1a1a; padding: 10px; font-size: 12px; font-weight: bold; color: var(--primary); display: flex; border-bottom: 1px solid var(--border); }
+        .h-col { flex: 1; text-align: center; }
+        #w-history-table { flex: 1; overflow-y: auto; }
+        .history-row { display: flex; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; align-items: center; font-size: 11px; }
+        .status-pill { padding: 4px 8px; border-radius: 5px; font-weight: bold; font-size: 9px; text-transform: uppercase; }
+        .status-success { background: #1ed760; color: #000; }
+        .status-pending { background: #ffa500; color: #000; }
+
+        .card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 15px; }
+        .inp { width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 10px; margin-top: 8px; outline: none; font-size: 14px; }
+        .btn-green { background: var(--primary); color: #000; border: none; padding: 12px; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; }
+        .btn-green:disabled { background: #155e2d; color: #888; cursor: not-allowed; }
+
+        .nav-bar { height: 65px; background: #000; border-top: 1px solid var(--border); display: flex; flex-shrink: 0; }
+        .nav-tab { flex: 1; display: flex; align-items: center; justify-content: center; color: #666; font-size: 11px; font-weight: bold; }
+        .nav-tab.on { color: var(--primary); }
+
+        .chat-area { flex: 1; background: #080808; border: 1px solid var(--border); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 5px; }
+        #m-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+        .msg-row { display: flex; gap: 8px; align-items: flex-start; }
+        .msg-pic-small { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--primary); object-fit: cover; }
+        .msg-bubble { background: #1a1a1a; padding: 8px 12px; border-radius: 12px; max-width: 85%; }
+        .msg-bubble b { font-size: 10px; color: var(--primary); display: block; }
+        .msg-bubble p { font-size: 12px; color: #efefef; }
+
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+        .promote-card { width: 100%; max-width: 350px; background: #121212; border: 1px solid var(--border); border-radius: 20px; padding: 20px; position: relative; }
+        .qr-container { background: #fff; padding: 15px; border-radius: 15px; margin: 15px auto; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; }
+        #admin-qr { width: 180px; height: 180px; object-fit: contain; }
+        .upi-box { background: #000; border: 1px dashed var(--primary); padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .upi-id-text { color: var(--primary); font-weight: bold; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .copy-btn { background: var(--primary); color: #000; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; cursor: pointer; margin-left: 10px; }
+        
+        .file-label { display: block; background: #1a1a1a; border: 1px dashed #444; color: #aaa; padding: 10px; border-radius: 10px; text-align: center; margin-top: 10px; cursor: pointer; font-size: 12px; }
+        .file-label:hover { border-color: var(--primary); color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="card" style="width: 320px; text-align: center;">
+        <div class="logo">VIDGU MAX</div>
+        <input type="tel" id="login-phone" class="inp" placeholder="Phone Number" maxlength="10">
+        <button class="btn-green" style="margin-top:20px;" onclick="handleLogin()">LOGIN</button>
+    </div>
+</div>
+
+<header class="app-bar">
+    <div class="logo">VIDGU MAX</div>
+    <button class="btn-green" style="padding:5px 15px; width:auto; font-size:12px;" onclick="openModal('promo-modal')">PROMOTE</button>
+</header>
+
+<main class="viewport">
+    <section id="p-home" class="page active">
+        <div class="video-box" onclick="togglePlay()">
+            <video id="main-player" playsinline onended="onVideoEnd()" controls></video>
+        </div>
+
+        <div id="ad-container"></div>
+
+        <div class="chat-area">
+            <div id="m-list"></div>
+            <div style="display:flex; padding:10px; gap:8px; background: #121212;">
+                <input type="text" id="chat-in" class="inp" style="margin:0; flex:1;" placeholder="Say something..." onkeypress="if(event.key==='Enter') sendChat()">
+                <button onclick="sendChat()" style="color:var(--primary); background:none; border:none; font-weight:bold;">SEND</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="p-wallet" class="page">
+        <div class="card" style="text-align:center;">
+            <p style="color:#888; font-size:10px;">TOTAL BALANCE</p>
+            <h1 style="color:var(--primary); font-size:28px;">₹<span id="bal-val">0.00</span></h1>
+        </div>
+        <div class="card" style="margin-top:2px;">
+            <input type="text" id="w-upi" class="inp" placeholder="UPI ID (VPA)">
+            <input type="number" id="w-amt" class="inp" placeholder="Amount (Min ₹100)">
+            <button class="btn-green" style="margin-top:10px;" onclick="withdraw()">WITHDRAW NOW</button>
+        </div>
+        <div class="history-card">
+            <div class="history-header"><span style="flex:1.5">DATE / TYPE</span><span class="h-col">AMOUNT</span><span class="h-col" style="text-align:right">STATUS</span></div>
+            <div id="w-history-table"></div>
+        </div>
+    </section>
+
+    <section id="p-profile" class="page">
+        <div class="card" style="text-align:center;">
+            <img id="user-pic" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width:70px; height:70px; border-radius:50%; border:2px solid var(--primary); object-fit:cover;">
+            <input type="tel" id="p-phone" class="inp" placeholder="Phone" disabled>
+            <input type="text" id="p-name" class="inp" placeholder="Name">
+            <input type="text" id="p-pic-url" class="inp" placeholder="Pic URL">
+            <button class="btn-green" style="margin-top:20px;" onclick="updateProfile()">SAVE CHANGES</button>
+            <button onclick="logout()" style="color:#ff4444; background:none; border:none; margin-top:20px; font-weight:bold;">LOGOUT</button>
+        </div>
+    </section>
+</main>
+
+<nav class="nav-bar">
+    <div class="nav-tab on" onclick="nav('p-home', this)">HOME</div>
+    <div class="nav-tab" onclick="nav('p-wallet', this)">WALLET</div>
+    <div class="nav-tab" onclick="nav('p-profile', this)">PROFILE</div>
+</nav>
+
+<div id="promo-modal" class="modal-overlay">
+    <div class="promote-card">
+        <h2 style="text-align:center; color:var(--primary); font-size: 1.2rem;">Promote Your Video</h2>
+        <div class="qr-container">
+            <img id="admin-qr" src="" alt="Scan Me">
+        </div>
+        <div class="upi-box">
+            <span id="admin-upi-text" class="upi-id-text">Loading...</span>
+            <span class="copy-btn" onclick="copyUPI()">COPY</span>
+        </div>
+        <p id="pay-amt-title" style="text-align:center; font-weight:bold; font-size:14px; margin-bottom:5px;">Fee: ₹...</p>
+        
+        <label class="file-label" for="promo-vid-file">
+            <span id="file-status">Select Video (Max 10MB)</span>
+            <input type="file" id="promo-vid-file" accept="video/*" style="display:none;" onchange="handleFile(this)">
+        </label>
+        
+        <input type="text" id="promo-proof-url" class="inp" placeholder="Payment Screenshot Link">
+        
+        <button id="promo-submit-btn" class="btn-green" style="margin-top:15px;" onclick="submitPromo()">SUBMIT REQUEST</button>
+        <p onclick="closeModal('promo-modal')" style="text-align:center; margin-top:15px; font-size:13px; color:#666; cursor:pointer;">Close</p>
+    </div>
+</div>
+
+<script>
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+  apiKey: "AIzaSyDTZ11VgmqCuJxXGH626zbH4HG7IWDIt-w",
+  authDomain: "vidgu--max.firebaseapp.com",
+  databaseURL: "https://vidgu--max-default-rtdb.firebaseio.com",
+  projectId: "vidgu--max",
+  storageBucket: "vidgu--max.firebasestorage.app",
+  messagingSenderId: "65933375026",
+  appId: "1:65933375026:web:35011c643ac94b15776e2b"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(); 
+
+    let user = JSON.parse(localStorage.getItem('vidgu_user'));
+    let REWARD_AMT = 0; 
+    let selectedVideoBase64 = "";
+    let currentVidId = null; 
+    const player = document.getElementById('main-player');
+    const mList = document.getElementById('m-list');
+
+    window.onload = () => {
+        if(!user) { document.getElementById('login-overlay').style.display = 'flex'; } 
+        else { initUserData(user.phone); loadAdminConfig(); listenQueue(); listenChat(); listenAds(); }
+    };
+
+    // --- MONETAG AD SYSTEM (FIREBASE DRIVEN) ---
+    function listenAds() {
+        const adContainer = document.getElementById('ad-container');
+        
+        db.ref('monetag_ads').on('value', snapshot => {
+            const adConfig = snapshot.val();
+            
+            // Clear current ad to prevent duplicates or stale scripts
+            adContainer.innerHTML = "";
+            
+            if (adConfig && adConfig.active === true) {
+                adContainer.style.display = 'block';
+                
+                // Create the script element
+                const script = document.createElement('script');
+                script.src = adConfig.script_url; // Set from Firebase
+                
+                // If Monetag requires a data-zone attribute
+                if (adConfig.data_zone) {
+                    script.setAttribute('data-zone', adConfig.data_zone);
+                }
+                
+                // Handle async/defer if needed
+                script.async = true;
+                
+                // Inject the script into the container
+                adContainer.appendChild(script);
+                console.log("Ad script injected from Firebase settings.");
+            } else {
+                adContainer.style.display = 'none';
+                console.log("Ads are currently disabled in Admin settings.");
+            }
+        });
+    }
+
+    // --- FILE HANDLING ---
+    function handleFile(input) {
+        const file = input.files[0];
+        if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+                alert("File too large! Max 10MB allowed.");
+                input.value = "";
+                return;
+            }
+            document.getElementById('file-status').innerText = "Processing: " + file.name;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedVideoBase64 = e.target.result;
+                document.getElementById('file-status').innerText = "Selected: " + file.name;
+                document.getElementById('file-status').style.color = "#1ed760";
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function submitPromo() {
+        const pUrl = document.getElementById('promo-proof-url').value;
+        const btn = document.getElementById('promo-submit-btn');
+
+        if(!selectedVideoBase64) { alert("Please select a video file!"); return; }
+        if(!pUrl) { alert("Please provide payment proof link!"); return; }
+
+        btn.disabled = true;
+        btn.innerText = "UPLOADING...";
+
+        db.ref('promo_requests').push({
+            phone: user.phone,
+            videoData: selectedVideoBase64,
+            proof: pUrl,
+            time: Date.now(),
+            status: "pending"
+        }).then(() => {
+            alert("Submitted Successfully! Admin will review it.");
+            closeModal('promo-modal');
+            location.reload();
+        }).catch(e => {
+            alert("Error: " + e.message);
+            btn.disabled = false;
+            btn.innerText = "SUBMIT REQUEST";
+        });
+    }
+
+    function copyUPI() {
+        const upi = document.getElementById('admin-upi-text').innerText;
+        navigator.clipboard.writeText(upi).then(() => alert("UPI ID Copied!"));
+    }
+
+    function loadAdminConfig() { 
+        db.ref('admin_settings').on('value', s => { 
+            const d = s.val()||{}; 
+            REWARD_AMT = d.reward||0; 
+            document.getElementById('admin-qr').src = d.qr_url || ""; 
+            document.getElementById('admin-upi-text').innerText = d.upi || "Not Set"; 
+            document.getElementById('pay-amt-title').innerText = "Fee: ₹"+ (d.fee || 0); 
+        }); 
+    }
+
+    function initUserData(phone) {
+        db.ref('users/' + phone).on('value', s => {
+            if(s.exists()){
+                user = s.val();
+                document.getElementById('bal-val').innerText = (user.balance || 0).toFixed(2);
+                document.getElementById('p-phone').value = user.phone;
+                document.getElementById('p-name').value = user.name || "";
+                document.getElementById('p-pic-url').value = user.pic || "";
+                if(user.pic) document.getElementById('user-pic').src = user.pic;
+                renderHistory(user.history);
+            }
+        });
+    }
+
+    function renderHistory(historyData) {
+        const hTable = document.getElementById('w-history-table');
+        hTable.innerHTML = "";
+        if(!historyData) return;
+        Object.values(historyData).reverse().forEach(h => {
+            const isPlus = h.type === 'plus';
+            const dateStr = new Date(h.time).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+            let statusHtml = isPlus ? `<span class="status-pill status-success">ADDED</span>` : `<span class="status-pill status-${h.status || 'pending'}">${h.status || 'pending'}</span>`;
+            hTable.innerHTML += `<div class="history-row"><div style="flex:1.5"><div style="font-weight:bold; color:#fff;">${h.msg}</div><div style="color:#666; font-size:9px;">${dateStr}</div></div><div class="h-col" style="font-weight:bold; color:${isPlus ? '#1ed760' : '#ff4444'}">${isPlus ? '+' : '-'}₹${h.amt}</div><div class="h-col" style="text-align:right">${statusHtml}</div></div>`;
+        });
+    }
+
+    function withdraw() {
+        const amt = parseInt(document.getElementById('w-amt').value);
+        const upi = document.getElementById('w-upi').value;
+        if(amt >= 100 && user.balance >= amt && upi) {
+            const key = db.ref().child('users/' + user.phone + '/history').push().key;
+            const data = { msg:"Withdrawal", amt:amt, type:"minus", status:"pending", time:Date.now(), upi:upi, phone:user.phone };
+            db.ref('users/' + user.phone).transaction(u => { if(u) { u.balance -= amt; if(!u.history) u.history = {}; u.history[key] = data; } return u; });
+            db.ref('withdrawals/' + key).set(data);
+            alert("Withdraw Requested!");
+        } else { alert("Low balance or Min ₹100"); }
+    }
+
+    function listenChat() {
+        db.ref('chat').limitToLast(15).on('child_added', s => {
+            const d = s.val();
+            mList.insertAdjacentHTML('beforeend', `<div class="msg-row"><img src="${d.pic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="msg-pic-small"><div class="msg-bubble"><b>${d.name}</b><p>${d.text}</p></div></div>`);
+            mList.scrollTop = mList.scrollHeight;
+        });
+    }
+
+    function sendChat() {
+        const inp = document.getElementById('chat-in');
+        if(inp.value.trim()) { db.ref('chat').push({ name: user.name || "User", text: inp.value, pic: user.pic || "", time: Date.now() }); inp.value = ""; }
+    }
+
+    function onVideoEnd() {
+        if(currentVidId && currentVidId !== "demo") {
+            db.ref('users/' + user.phone).transaction(u => {
+                if(u) {
+                    u.balance = (u.balance || 0) + REWARD_AMT;
+                    const key = db.ref().child('history').push().key;
+                    if(!u.history) u.history = {};
+                    u.history[key] = { msg: "Video Bonus", amt: REWARD_AMT, type: "plus", time: Date.now() };
+                }
+                return u;
+            });
+            alert("Reward added!");
+        }
+    }
+
+    function handleLogin() {
+        const ph = document.getElementById('login-phone').value;
+        if(ph.length === 10) {
+            db.ref('users/' + ph).once('value', s => {
+                if(!s.exists()) {
+                    const newUser = { phone: ph, balance: 0, name: "User_"+ph.slice(-4), pic: "", history: {} };
+                    db.ref('users/' + ph).set(newUser);
+                    localStorage.setItem('vidgu_user', JSON.stringify(newUser));
+                } else { localStorage.setItem('vidgu_user', JSON.stringify(s.val())); }
+                location.reload();
+            });
+        } else { alert("Enter valid 10-digit phone"); }
+    }
+
+    function listenQueue() { db.ref('global_queue').limitToFirst(1).on('value', s => { if(s.exists()){ currentVidId = Object.keys(s.val())[0]; player.src = s.val()[currentVidId].url; } else { player.src = "https://www.w3schools.com/html/mov_bbb.mp4"; currentVidId = "demo"; } }); }
+    function nav(id, el) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on')); document.getElementById(id).classList.add('active'); el.classList.add('on'); }
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function togglePlay() { player.paused ? player.play() : player.pause(); }
+    function logout() { localStorage.clear(); location.reload(); }
+    function updateProfile() { db.ref('users/' + user.phone).update({ name: document.getElementById('p-name').value, pic: document.getElementById('p-pic-url').value }); alert("Saved!"); }
+</script>
+</body>
+</html>
