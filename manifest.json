@@ -1,0 +1,15 @@
+{
+  "name": "Vidgu Max",
+  "short_name": "Vidgu",
+  "start_url": "https://vidgu.netlify.app/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "https://vidgu.netlify.app/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
