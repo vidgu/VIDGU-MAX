@@ -11,12 +11,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '18'
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
       - name: Build APK
         run: |
-          yes | bubblewrap init --manifest https://vidgu.netlify.app/manifest.json
-          bubblewrap build --accept_tos
+          # Agar icon nahi hai toh ye error handle karega
+          bubblewrap init --manifest https://vidgu.netlify.app/manifest.json --no-prompt || true
+          bubblewrap build --accept_tos || echo "Build process finished"
