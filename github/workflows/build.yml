@@ -1,0 +1,23 @@
+name: Build HTML APK
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build APK from HTML
+        uses: simple-elf/github-all-in-one-action@v1
+        with:
+          # Aapka folder jisme index.html hai
+          path: '.' 
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VIDGU-MAX-APK
+          path: "**/*.apk"
