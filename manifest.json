@@ -1,6 +1,6 @@
 {
   "name": "Vidgu Max",
-  "short_name": "Vidgu",
+  "short_name": "Vidgu Max",
   "start_url": "https://vidgu.netlify.app/",
   "display": "standalone",
   "background_color": "#ffffff",
