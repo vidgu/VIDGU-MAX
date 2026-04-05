@@ -14,9 +14,8 @@ jobs:
         uses: simple-elf/github-all-in-one-action@v1
         with:
           path: '.'
-          repository_name: 'VIDGU-MAX'
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: VIDGU-APK
