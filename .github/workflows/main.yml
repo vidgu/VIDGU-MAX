@@ -1,0 +1,23 @@
+name: Build APK from HTML
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Android APK
+        uses: simple-elf/github-all-in-one-action@v1
+        with:
+          path: '.'
+          repository_name: 'VIDGU-MAX'
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VIDGU-APK
+          path: "**/*.apk"
