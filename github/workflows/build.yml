@@ -1,4 +1,4 @@
-name: Build HTML APK
+name: Build APK
 
 on:
   push:
@@ -10,11 +10,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build APK from HTML
-        uses: simple-elf/github-all-in-one-action@v1
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          # Aapka folder jisme index.html hai
-          path: '.' 
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
+        run: chmod +x gradlew && ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
